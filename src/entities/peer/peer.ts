@@ -112,7 +112,7 @@ export class Peer {
         }
 
         /**
-         * Ao conectar com um peer que não seja admin, ele irá
+         * Ao conectar com um peer, ele irá
          * solicitar que o novo peer se conecte a todos os peers que
          * estão na rede.
          */
