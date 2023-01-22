@@ -9,6 +9,7 @@ export class Peer {
   socket: Socket | undefined;
   connections: Socket[] = [];
   room?: Room;
+  notDisplay?: boolean;
 
   constructor(address: string) {
     this.address = address;
@@ -29,9 +30,7 @@ export class Peer {
         data: {
           admin: this.room?.adminAdress,
           addressBanneds: this.room?.addressBanneds,
-          adressToConnect: this.connections.length
-            ? this.addressConecteds
-            : undefined,
+          adressToConnect: this.addressConecteds,
         },
       };
 
@@ -61,7 +60,8 @@ export class Peer {
 
   onConnect(address: string) {
     if (this.socket) {
-      console.log("Você entrou na sala!");
+      this.checkDisplay("Você entrou na sala!");
+
       this.addressConecteds.push(address);
 
       this.connections.push(this.socket);
@@ -103,7 +103,7 @@ export class Peer {
         break;
       case PeerBroadcastAction.UPDATE_ROOM:
         /**
-         * Garante que os dados da sala (lista de peers, peers banidos, etc)
+         * Garante que os dados da sala
          * estarão sempre atualizados
          */
         if (!this.room) {
@@ -117,11 +117,11 @@ export class Peer {
          * estão na rede.
          */
 
-        if (peerAction.data.adressToConnect) {
-          for (const peer of peerAction.data.adressToConnect) {
-            if (!this.addressConecteds.includes(peer)) {
-              this.connect(peer);
-            }
+        for (const peer of peerAction.data.adressToConnect) {
+          this.notDisplay = true;
+
+          if (!this.addressConecteds.includes(peer)) {
+            this.connect(peer);
           }
         }
 
@@ -167,5 +167,13 @@ export class Peer {
         return conn !== socket;
       });
     });
+  }
+
+  private checkDisplay(message: string) {
+    if (!this.notDisplay) {
+      console.log(message);
+    } else {
+      this.notDisplay = false;
+    }
   }
 }

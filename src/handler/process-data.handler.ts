@@ -41,7 +41,7 @@ export const handleData = (peer: Peer, data: any) => {
     const param = dataArray.shift();
 
     if (param) {
-      const hasTagert = peer.room?.peers.includes(param);
+      const hasTagert = peer.addressConecteds.includes(param);
 
       if (!hasTagert) {
         return console.log("O endereço informado não está na sala");
