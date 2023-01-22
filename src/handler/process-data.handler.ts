@@ -18,6 +18,8 @@ export const commandMap: Record<string, any> = {
     if (prop.param && prop.message) prop.peer.private(prop.param, prop.message);
   },
   "/list": (prop: CommandMapProp) => prop.peer.list(),
+  "/exit": (prop: CommandMapProp) =>
+    prop.peer.exit({ log: "Você saiu da sala!", self: true }),
 };
 
 export const handleData = (peer: Peer, data: any) => {

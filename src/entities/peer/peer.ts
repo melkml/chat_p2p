@@ -106,12 +106,16 @@ export class Peer {
       case PeerBroadcastAction.SEND_MESSAGE:
         console.log(peerAction.actor + "> " + peerAction.data);
         break;
+      case PeerBroadcastAction.SEND_PRIVATE_MESSAGE:
+        if (this.address === peerAction.subject) {
+          console.log(peerAction.data);
+        }
+        break;
       case PeerBroadcastAction.UPDATE_ROOM:
         const amIBanned = peerAction.data.addressBanneds.includes(this.address);
 
         if (amIBanned) {
-          console.log("Você está banido dessa sala!");
-          return this.exit();
+          return this.exit({ log: "Você está banido dessa sala!" });
         }
         /**
          * Garante que os dados da sala
@@ -138,12 +142,11 @@ export class Peer {
 
         break;
       case PeerBroadcastAction.EXIT:
-        this.exit();
+        console.log(peerAction.data + " saiu da sala");
         break;
       case PeerBroadcastAction.KICK:
         if (this.room && this.address === peerAction.data) {
-          console.log("Você foi kikado!");
-          return this.exit();
+          return this.exit({ log: "Você foi kikado!" });
         }
 
         console.log(peerAction.data + " foi kikado!");
@@ -157,8 +160,7 @@ export class Peer {
           this.room.addressBanneds.push(peerAction.data);
 
           if (this.address === peerAction.data) {
-            console.log("Você foi banido!");
-            return this.exit();
+            return this.exit({ log: "Você foi banido!" });
           }
 
           console.log(peerAction.data + " foi banido!");
@@ -170,7 +172,14 @@ export class Peer {
     }
   }
 
-  exit() {
+  exit(options: { log: string; self?: boolean }) {
+    if (options.self) {
+      this.broadcast({
+        action: PeerBroadcastAction.EXIT,
+        data: this.address,
+      });
+    }
+
     this.connections.forEach((connection) => {
       connection.end();
     });
@@ -178,11 +187,15 @@ export class Peer {
     this.connections = [];
     this.room = undefined;
     this.addressConecteds = [];
+
+    console.log(options.log);
   }
 
   kick(adress: string, ban?: boolean) {
     if (this.room && this.isAdmin) {
-      this.room.addressBanneds.push(adress);
+      if (ban) {
+        this.room.addressBanneds.push(adress);
+      }
 
       const action = ban ? "baniu" : "kikou";
       console.log(`Você ${action} ` + adress);
@@ -202,7 +215,20 @@ export class Peer {
     console.log(this.addressConecteds);
   }
 
-  private(adress: string, message: string) {
+  private(adress: string, data: string) {
+    const dataArray = data.split(" ");
+
+    /**
+     * Retirando command e param da mensagem
+     */
+    const command = dataArray.shift();
+    const param = dataArray.shift();
+
+    const message =
+      this.address +
+      "(sussuro)>" +
+      data.replace(command as string, "").replace(param as string, "");
+
     this.broadcast({
       action: PeerBroadcastAction.SEND_PRIVATE_MESSAGE,
       subject: adress,
