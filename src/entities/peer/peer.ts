@@ -143,6 +143,12 @@ export class Peer {
         }
 
         break;
+      case PeerBroadcastAction.NEW_ADMIN:
+        if (this.room) {
+          this.room.adminAdress = peerAction.data;
+          console.log(peerAction.data + " é o novo administrador!");
+        }
+        break;
       case PeerBroadcastAction.EXIT:
         console.log(peerAction.data + " saiu da sala");
         break;
@@ -185,6 +191,19 @@ export class Peer {
      * Se o peer estiver saindo por vontade proria
      */
     if (options.self) {
+      /**
+       * Se o peer que estiver saindo for adm
+       * enviar broadcast para trocar de admin
+       *
+       * O novo admin sempre vai ser o primeiro que se conectou ao admin
+       */
+      if (this.isAdmin) {
+        this.broadcast({
+          action: PeerBroadcastAction.NEW_ADMIN,
+          data: this.addressConecteds.at(1),
+        });
+      }
+
       this.broadcast({
         action: PeerBroadcastAction.EXIT,
         data: this.address,
@@ -204,6 +223,15 @@ export class Peer {
 
   kick(adress: string, ban?: boolean) {
     if (this.room && this.isAdmin) {
+      /**
+       * Não é permitido que administrador dê auto kick.
+       */
+      if (this.address === adress) {
+        return console.log(
+          'Você não pode kikar a si próprio.\n Se quiser sair da sala, use o comando "/exit"'
+        );
+      }
+
       if (ban) {
         this.room.addressBanneds.push(adress);
       }

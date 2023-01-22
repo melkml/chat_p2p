@@ -6,4 +6,5 @@ export enum PeerBroadcastAction {
   ANNOUNCE_SELF_CAME = "self-came",
   EXIT = "exit",
   SEND_PRIVATE_MESSAGE = "private",
+  NEW_ADMIN = "new-admin",
 }
