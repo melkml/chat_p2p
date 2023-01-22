@@ -112,6 +112,9 @@ export class Peer {
         }
         break;
       case PeerBroadcastAction.UPDATE_ROOM:
+        /**
+         * Verifica se o novo peer está banido
+         */
         const amIBanned = peerAction.data.addressBanneds.includes(this.address);
 
         if (amIBanned) {
@@ -127,9 +130,8 @@ export class Peer {
         }
 
         /**
-         * Ao conectar com um peer, ele irá
-         * solicitar que o novo peer se conecte a todos os peers que
-         * estão na rede.
+         * Ao conectar com um peer, o novo peer
+         * deve se conectar a todos os outros peers na rede.
          */
 
         for (const peer of peerAction.data.adressToConnect) {
@@ -149,6 +151,9 @@ export class Peer {
           return this.exit({ log: "Você foi kikado!" });
         }
 
+        /**
+         * Se o peer não for o kickado
+         */
         console.log(peerAction.data + " foi kikado!");
         this.addressConecteds = this.addressConecteds.filter(
           (address) => address !== peerAction.data
@@ -163,6 +168,9 @@ export class Peer {
             return this.exit({ log: "Você foi banido!" });
           }
 
+          /**
+           * Se o peer não for o banido
+           */
           console.log(peerAction.data + " foi banido!");
           this.addressConecteds = this.addressConecteds.filter(
             (address) => address !== peerAction.data
@@ -173,6 +181,9 @@ export class Peer {
   }
 
   exit(options: { log: string; self?: boolean }) {
+    /**
+     * Se o peer estiver saindo por vontade proria
+     */
     if (options.self) {
       this.broadcast({
         action: PeerBroadcastAction.EXIT,
