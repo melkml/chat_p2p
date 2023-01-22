@@ -4,6 +4,7 @@ import { PeerActionData } from "./interface";
 import { PeerBroadcastAction } from "./enum";
 
 export class Peer {
+  addressConecteds: string[] = [];
   address: string;
   socket: Socket | undefined;
   connections: Socket[] = [];
@@ -23,14 +24,18 @@ export class Peer {
       this.connections.push(socket);
       this.prepareListeners(socket);
 
-      this.broadcast({
+      const data = {
         action: PeerBroadcastAction.UPDATE_ROOM,
         data: {
-          admin: this.room.adminAdress,
-          peers: this.room.peers.slice(1),
-          addressBanneds: this.room.addressBanneds,
+          admin: this.room?.adminAdress,
+          addressBanneds: this.room?.addressBanneds,
+          adressToConnect: this.connections.length
+            ? this.addressConecteds
+            : undefined,
         },
-      });
+      };
+
+      socket.write(JSON.stringify(data));
     });
 
     const port = address.split(":").at(1);
@@ -50,19 +55,24 @@ export class Peer {
     this.socket = new Socket();
 
     this.socket.connect(+port, host, () => {
-      this.onConnect();
+      this.onConnect(address);
     });
   }
 
-  onConnect() {
+  onConnect(address: string) {
     if (this.socket) {
+      console.log("Você entrou na sala!");
+      this.addressConecteds.push(address);
+
       this.connections.push(this.socket);
       this.prepareListeners(this.socket);
 
-      this.broadcast({
+      const data = {
         action: PeerBroadcastAction.ANNOUNCE_SELF_CAME,
         data: this.address,
-      });
+      };
+
+      this.socket.write(JSON.stringify(data));
     }
   }
 
@@ -78,47 +88,17 @@ export class Peer {
    * @param data
    */
 
-  handleData(socket: Socket, data: string) {
-    const peerAction = JSON.parse(data) as PeerActionData;
+  handleData(socket: Socket, data: string | Buffer) {
+    const peerAction = JSON.parse(data.toString()) as PeerActionData;
 
     switch (peerAction.action) {
       case PeerBroadcastAction.ANNOUNCE_SELF_CAME:
         if (this.room) {
-          const initMessage = `Peer ${peerAction.data} entrou na sala!`;
-          console.log(initMessage);
-
-          if (!this.room.peers.includes(peerAction.action)) {
-            this.room.peers.push(peerAction.data);
-          }
-          /**
-           * Caso o peer que chegou entrou por um peer não admin
-           * Avisa a todos os peers que chegou alguem
-           */
-          this.broadcast({
-            action: PeerBroadcastAction.ANNOUNCE_ANOTHER_CAME,
-            data: peerAction.data,
-          });
-        }
-        break;
-      case PeerBroadcastAction.ANNOUNCE_ANOTHER_CAME:
-        if (this.room) {
-          const initMessage = `Peer ${peerAction.data} entrou na sala!`;
-          console.log(initMessage);
-
-          this.room.peers.push(peerAction.data);
+          console.log("Peer " + peerAction.data + " entrou na sala!");
+          this.addressConecteds.push(peerAction.data);
         }
         break;
       case PeerBroadcastAction.SEND_MESSAGE:
-        /**
-         * Garantindo que todas as mensagens serão reproduzidas
-         * aos peers
-         */
-        this.connections.forEach((connection) => {
-          if (connection !== socket) {
-            connection.write(data.toString());
-          }
-        });
-
         console.log(peerAction.actor + "> " + peerAction.data);
         break;
       case PeerBroadcastAction.UPDATE_ROOM:
@@ -128,15 +108,29 @@ export class Peer {
          */
         if (!this.room) {
           this.room = new Room(peerAction.data.admin);
-          this.room.peers.push(...peerAction.data.peers);
           this.room.addressBanneds.push(...peerAction.data.addressBanneds);
         }
+
+        /**
+         * Ao conectar com um peer que não seja admin, ele irá
+         * solicitar que o novo peer se conecte a todos os peers que
+         * estão na rede.
+         */
+
+        if (peerAction.data.adressToConnect) {
+          for (const peer of peerAction.data.adressToConnect) {
+            if (!this.addressConecteds.includes(peer)) {
+              this.connect(peer);
+            }
+          }
+        }
+
         break;
       case PeerBroadcastAction.KICK:
         break;
       case PeerBroadcastAction.BAN:
         if (this.room) {
-          this.room.peers.push(peerAction.data);
+          this.room.addressBanneds.push(peerAction.data);
         }
         break;
     }
@@ -154,7 +148,7 @@ export class Peer {
   }
 
   list() {
-    console.log(this.room?.peers);
+    console.log(this.addressConecteds);
   }
 
   private(adress: string, message: string) {
@@ -166,7 +160,7 @@ export class Peer {
   }
 
   private prepareListeners(socket: Socket) {
-    socket.on("data", (data) => this.handleData(socket, data.toString()));
+    socket.on("data", (data) => this.handleData(socket, data));
 
     socket.on("end", () => {
       this.connections = this.connections.filter((conn) => {
