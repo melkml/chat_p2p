@@ -22,7 +22,7 @@ export const commandMap: Record<string, any> = {
 
 export const handleData = (peer: Peer, data: any) => {
   if (peer.room) {
-    const message = data.toString().replace(/\n/g, "") as string;
+    const message = data.toString().replace(/\n/g, "").trim();
 
     const dataArray = message.split(" ");
 
@@ -41,7 +41,7 @@ export const handleData = (peer: Peer, data: any) => {
     const param = dataArray.shift();
 
     if (param) {
-      const hasTagert = peer.addressConecteds.includes(param);
+      const hasTagert = peer.addressConecteds.includes(param.toString());
 
       if (!hasTagert) {
         return console.log("O endereço informado não está na sala");

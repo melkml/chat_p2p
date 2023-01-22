@@ -22,6 +22,7 @@ export class Peer {
       if (!this.room) {
         this.room = new Room(address);
       }
+
       this.connections.push(socket);
       this.prepareListeners(socket);
 
@@ -94,14 +95,24 @@ export class Peer {
     switch (peerAction.action) {
       case PeerBroadcastAction.ANNOUNCE_SELF_CAME:
         if (this.room) {
-          console.log("Peer " + peerAction.data + " entrou na sala!");
-          this.addressConecteds.push(peerAction.data);
+          const isBanned = this.room.addressBanneds.includes(peerAction.data);
+
+          if (!isBanned) {
+            console.log("Peer " + peerAction.data + " entrou na sala!");
+            this.addressConecteds.push(peerAction.data);
+          }
         }
         break;
       case PeerBroadcastAction.SEND_MESSAGE:
         console.log(peerAction.actor + "> " + peerAction.data);
         break;
       case PeerBroadcastAction.UPDATE_ROOM:
+        const amIBanned = peerAction.data.addressBanneds.includes(this.address);
+
+        if (amIBanned) {
+          console.log("Você está banido dessa sala!");
+          return this.exit();
+        }
         /**
          * Garante que os dados da sala
          * estarão sempre atualizados
@@ -126,24 +137,64 @@ export class Peer {
         }
 
         break;
+      case PeerBroadcastAction.EXIT:
+        this.exit();
+        break;
       case PeerBroadcastAction.KICK:
+        if (this.room && this.address === peerAction.data) {
+          console.log("Você foi kikado!");
+          return this.exit();
+        }
+
+        console.log(peerAction.data + " foi kikado!");
+        this.addressConecteds = this.addressConecteds.filter(
+          (address) => address !== peerAction.data
+        );
+
         break;
       case PeerBroadcastAction.BAN:
         if (this.room) {
           this.room.addressBanneds.push(peerAction.data);
+
+          if (this.address === peerAction.data) {
+            console.log("Você foi banido!");
+            return this.exit();
+          }
+
+          console.log(peerAction.data + " foi banido!");
+          this.addressConecteds = this.addressConecteds.filter(
+            (address) => address !== peerAction.data
+          );
         }
         break;
     }
   }
 
+  exit() {
+    this.connections.forEach((connection) => {
+      connection.end();
+    });
+
+    this.connections = [];
+    this.room = undefined;
+    this.addressConecteds = [];
+  }
+
   kick(adress: string, ban?: boolean) {
-    if (this.isAdmin && this.room) {
+    if (this.room && this.isAdmin) {
       this.room.addressBanneds.push(adress);
+
+      const action = ban ? "baniu" : "kikou";
+      console.log(`Você ${action} ` + adress);
 
       this.broadcast({
         action: ban ? PeerBroadcastAction.BAN : PeerBroadcastAction.KICK,
         data: adress,
       });
+
+      this.addressConecteds = this.addressConecteds.filter(
+        (add) => add !== adress
+      );
     }
   }
 
